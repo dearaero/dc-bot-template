@@ -18,7 +18,7 @@ function command(overrides: Partial<Command> = {}): Command {
 }
 
 void test('komut execute öncesinde ephemeral defer edilir', async () => {
-  const context = services([{ name: 'test', commands: [command()] }]);
+  const context = services({ commands: [command()] });
   const router = new InteractionRouter(context);
   const i = interaction();
   router.handle(i.value);
@@ -40,18 +40,15 @@ void test('bilinmeyen komut güvenli ve ephemeral yanıt alır', async () => {
 });
 
 void test('beklenmeyen hata loglanır; kullanıcı secret/stack yerine takip kodu alır', async () => {
-  const context = services([
-    {
-      name: 'test',
-      commands: [
-        command({
-          execute() {
-            throw new Error('test-secret failure');
-          },
-        }),
-      ],
-    },
-  ]);
+  const context = services({
+    commands: [
+      command({
+        execute() {
+          throw new Error('test-secret failure');
+        },
+      }),
+    ],
+  });
   const router = new InteractionRouter(context);
   const i = interaction();
   router.handle(i.value);
@@ -64,19 +61,16 @@ void test('beklenmeyen hata loglanır; kullanıcı secret/stack yerine takip kod
 });
 
 void test('UserError mesajı gösterilir, yanıt sonrası hata followUp kullanır', async () => {
-  const context = services([
-    {
-      name: 'test',
-      commands: [
-        command({
-          async execute(i) {
-            await i.editReply('önceki sonuç');
-            throw new UserError('İş kuralı.', 'RULE');
-          },
-        }),
-      ],
-    },
-  ]);
+  const context = services({
+    commands: [
+      command({
+        async execute(i) {
+          await i.editReply('önceki sonuç');
+          throw new UserError('İş kuralı.', 'RULE');
+        },
+      }),
+    ],
+  });
   const router = new InteractionRouter(context);
   const i = interaction();
   router.handle(i.value);
@@ -95,30 +89,25 @@ void test('hata yanıtının kendisi başarısızsa tekrar yanıt döngüsü olu
   assert.match(context.logs.join(''), /expired/);
 });
 
-void test('DM, kullanıcı ve bot izin kontrolleri execute çağrısını engeller', async () => {
+void test('kullanıcı ve bot izin kontrolleri execute çağrısını engeller', async () => {
   for (const policy of [
-    { guildOnly: true },
     { userPermissions: PermissionFlagsBits.ManageGuild },
     { botPermissions: PermissionFlagsBits.SendMessages },
   ]) {
     let executed = false;
-    const context = services([
-      {
-        name: 'test',
-        commands: [
-          command({
-            ...policy,
-            execute() {
-              executed = true;
-              return Promise.resolve();
-            },
-          }),
-        ],
-      },
-    ]);
+    const context = services({
+      commands: [
+        command({
+          ...policy,
+          execute() {
+            executed = true;
+            return Promise.resolve();
+          },
+        }),
+      ],
+    });
     const router = new InteractionRouter(context);
     const i = interaction();
-    if ('guildOnly' in policy) i.fake.guildId = null;
     router.handle(i.value);
     await settled(router);
     assert.equal(executed, false);
@@ -127,9 +116,7 @@ void test('DM, kullanıcı ve bot izin kontrolleri execute çağrısını engell
 });
 
 void test('aynı kullanıcının eşzamanlı komutları cooldown atlayamaz', async () => {
-  const router = new InteractionRouter(
-    services([{ name: 'test', commands: [command({ cooldownMs: 10_000 })] }]),
-  );
+  const router = new InteractionRouter(services({ commands: [command({ cooldownMs: 10_000 })] }));
   const a = interaction();
   const b = interaction();
   router.handle(a.value);
@@ -149,7 +136,7 @@ void test('autocomplete failure boş listeyle yanıtlanır; yetkisiz handler ça
         throw new Error('autocomplete failure');
       },
     });
-    const router = new InteractionRouter(services([{ name: 'test', commands: [entry] }]));
+    const router = new InteractionRouter(services({ commands: [entry] }));
     const i = interaction('autocomplete');
     router.handle(i.value);
     await settled(router);
@@ -167,7 +154,9 @@ void test('button update hatası kaynak mesaj yerine ephemeral followUp üretir'
       throw new UserError('Bileşen hatası.');
     },
   };
-  const router = new InteractionRouter(services([{ name: 'test', components: [component] }]));
+  const router = new InteractionRouter(
+    services({ modules: [{ name: 'test', components: [component] }] }),
+  );
   const i = interaction('button');
   router.handle(i.value);
   await settled(router);
@@ -179,12 +168,9 @@ void test('button update hatası kaynak mesaj yerine ephemeral followUp üretir'
 
 void test('manual handler onay vermezse merkez güvenli hata yanıtı üretir', async () => {
   const router = new InteractionRouter(
-    services([
-      {
-        name: 'test',
-        commands: [command({ acknowledgement: 'manual', execute: () => Promise.resolve() })],
-      },
-    ]),
+    services({
+      commands: [command({ acknowledgement: 'manual', execute: () => Promise.resolve() })],
+    }),
   );
   const i = interaction();
   router.handle(i.value);
@@ -195,27 +181,24 @@ void test('manual handler onay vermezse merkez güvenli hata yanıtı üretir', 
 void test('kapanış aktif işe abort sinyali verir ve yeni iş kabul etmez', async () => {
   let receivedSignal: AbortSignal | undefined;
   const router = new InteractionRouter(
-    services([
-      {
-        name: 'test',
-        commands: [
-          command({
-            execute(_i, { signal }) {
-              receivedSignal = signal;
-              return new Promise<void>((resolve) => {
-                signal.addEventListener(
-                  'abort',
-                  () => {
-                    resolve();
-                  },
-                  { once: true },
-                );
-              });
-            },
-          }),
-        ],
-      },
-    ]),
+    services({
+      commands: [
+        command({
+          execute(_i, { signal }) {
+            receivedSignal = signal;
+            return new Promise<void>((resolve) => {
+              signal.addEventListener(
+                'abort',
+                () => {
+                  resolve();
+                },
+                { once: true },
+              );
+            });
+          },
+        }),
+      ],
+    }),
   );
   router.handle(interaction().value);
   await setImmediate();
@@ -232,19 +215,16 @@ void test('kapasite sınırı aşılmaz; iptale uymayan işte drain sonlu süred
   let release: (() => void) | undefined;
   const router = new InteractionRouter(
     services(
-      [
-        {
-          name: 'test',
-          commands: [
-            command({
-              execute: () =>
-                new Promise<void>((resolve) => {
-                  release = resolve;
-                }),
-            }),
-          ],
-        },
-      ],
+      {
+        commands: [
+          command({
+            execute: () =>
+              new Promise<void>((resolve) => {
+                release = resolve;
+              }),
+          }),
+        ],
+      },
       { maxConcurrentInteractions: 1 },
     ),
   );
@@ -261,7 +241,7 @@ void test('kapasite sınırı aşılmaz; iptale uymayan işte drain sonlu süred
 
 void test('defer sonrası nihai yanıt vermeyen komutun spinnerı hata ile tamamlanır', async () => {
   const router = new InteractionRouter(
-    services([{ name: 'test', commands: [command({ execute: () => Promise.resolve() })] }]),
+    services({ commands: [command({ execute: () => Promise.resolve() })] }),
   );
   const i = interaction();
   router.handle(i.value);
@@ -276,26 +256,23 @@ void test('defer sonrası nihai yanıt vermeyen komutun spinnerı hata ile tamam
 void test('kooperatif handler süre aşımında iptal edilir ve güvenli yanıt alır', async () => {
   const router = new InteractionRouter(
     services(
-      [
-        {
-          name: 'test',
-          commands: [
-            command({
-              execute(_i, { signal }) {
-                return new Promise<void>((_resolve, reject) => {
-                  signal.addEventListener(
-                    'abort',
-                    () => {
-                      reject(new Error('aborted', { cause: signal.reason }));
-                    },
-                    { once: true },
-                  );
-                });
-              },
-            }),
-          ],
-        },
-      ],
+      {
+        commands: [
+          command({
+            execute(_i, { signal }) {
+              return new Promise<void>((_resolve, reject) => {
+                signal.addEventListener(
+                  'abort',
+                  () => {
+                    reject(new Error('aborted', { cause: signal.reason }));
+                  },
+                  { once: true },
+                );
+              });
+            },
+          }),
+        ],
+      },
       { handlerTimeoutMs: 5 },
     ),
   );
@@ -307,4 +284,39 @@ void test('kooperatif handler süre aşımında iptal edilir ve güvenli yanıt 
   });
   await settled(router);
   assert.match(JSON.stringify(i.calls.at(-1)?.payload), /Takip kodu/);
+});
+
+void test('DM ve yabancı sunucuda komut, autocomplete ve tüm bileşen handler’ları engellenir', async () => {
+  for (const guildId of [null, '123456789012345699']) {
+    for (const kind of ['command', 'autocomplete', 'button', 'select', 'modal'] as const) {
+      let executions = 0;
+      const executed = () => {
+        executions++;
+        return Promise.resolve();
+      };
+      const context = services({
+        commands: [command({ execute: executed, autocomplete: executed })],
+        modules: [
+          {
+            name: 'guard',
+            components: [
+              { kind: 'button', key: 'test', execute: executed },
+              { kind: 'select', key: 'test', execute: executed },
+              { kind: 'modal', key: 'test', execute: executed },
+            ],
+          },
+        ],
+      });
+      const router = new InteractionRouter(context);
+      const i = interaction(kind);
+      i.fake.guildId = guildId;
+      router.handle(i.value);
+      await settled(router);
+      assert.equal(executions, 0);
+      assert.equal(i.calls.length, 1);
+      assert.equal(i.calls[0]?.method, kind === 'autocomplete' ? 'respond' : 'reply');
+      if (kind === 'autocomplete') assert.deepEqual(i.calls[0]?.payload, []);
+      else assert.match(JSON.stringify(i.calls[0]?.payload), /yapılandırılmış sunucuda/);
+    }
+  }
 });

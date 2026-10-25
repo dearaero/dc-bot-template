@@ -13,27 +13,24 @@ export class Registry {
   readonly components: ReadonlyMap<string, AnyComponent>;
   readonly events: readonly BotEvent[];
 
-  constructor(modules: readonly BotModule[]) {
+  constructor(modules: readonly BotModule[], commandList: readonly Command[] = []) {
     const names = new Set<string>();
     const commands = new Map<string, Command>();
     const components = new Map<string, AnyComponent>();
     const events: BotEvent[] = [];
+    for (const command of commandList) {
+      const data = command.data.toJSON();
+      if (!data.name || commands.has(data.name))
+        throw new Error(`Tekrarlanan/geçersiz komut: ${data.name}`);
+      if (data.type !== undefined && Number(data.type) !== Number(ApplicationCommandType.ChatInput))
+        throw new Error('Yalnızca slash komutları desteklenir.');
+      this.validatePolicy(command);
+      commands.set(data.name, command);
+    }
     for (const module of modules) {
       if (!module.name || names.has(module.name))
         throw new Error(`Tekrarlanan/geçersiz modül: ${module.name}`);
       names.add(module.name);
-      for (const command of module.commands ?? []) {
-        const data = command.data.toJSON();
-        if (!data.name || commands.has(data.name))
-          throw new Error(`Tekrarlanan/geçersiz komut: ${data.name}`);
-        if (
-          data.type !== undefined &&
-          Number(data.type) !== Number(ApplicationCommandType.ChatInput)
-        )
-          throw new Error('Yalnızca slash komutları desteklenir.');
-        this.validatePolicy(command);
-        commands.set(data.name, command);
-      }
       for (const component of module.components ?? []) {
         if (!/^[a-z][a-z0-9_-]{0,31}$/.test(component.key))
           throw new Error(`Geçersiz bileşen anahtarı: ${component.key}`);

@@ -3,12 +3,16 @@ import { test } from 'node:test';
 import { readConfig } from '../src/config.ts';
 import { ConfigurationError } from '../src/core/errors.ts';
 
-const valid = { DISCORD_TOKEN: 'private-token', DISCORD_APPLICATION_ID: '123456789012345678' };
+const valid = {
+  DISCORD_TOKEN: 'private-token',
+  DISCORD_APPLICATION_ID: '123456789012345678',
+  DISCORD_GUILD_ID: '123456789012345679',
+};
 
 void test('config geçerli değerleri tipli ve immutable döndürür', () => {
   const config = readConfig(valid);
   assert.equal(config.maxConcurrentInteractions, 100);
-  assert.equal(config.guildId, undefined);
+  assert.equal(config.guildId, valid.DISCORD_GUILD_ID);
   assert.equal(config.environment, 'development');
   assert.equal(Object.isFrozen(config), true);
 });
@@ -49,4 +53,10 @@ void test('boş token, hatalı ortam ve uint64 dışı snowflake reddedilir', ()
     () => readConfig({ ...valid, DISCORD_GUILD_ID: '99999999999999999999' }),
     ConfigurationError,
   );
+});
+
+void test('tek sunucu ID’si eksik veya boş olduğunda başlangıç reddedilir', () => {
+  for (const guildId of [undefined, '', '   ']) {
+    assert.throws(() => readConfig({ ...valid, DISCORD_GUILD_ID: guildId }), /DISCORD_GUILD_ID/);
+  }
 });

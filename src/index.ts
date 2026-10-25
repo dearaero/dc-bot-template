@@ -1,4 +1,5 @@
 import { readConfig } from './config.ts';
+import { commands } from './commands/index.ts';
 import { createClient } from './core/client.ts';
 import { createLogger } from './core/logger.ts';
 import { Registry } from './core/registry.ts';
@@ -46,7 +47,7 @@ process.on('uncaughtException', (error) => {
 try {
   const config = readConfig(process.env);
   logger = createLogger(config.logLevel, [config.token]);
-  const registry = new Registry(modules);
+  const registry = new Registry(modules, commands);
   const runtime = createRuntime({ config, logger, client: createClient(), registry });
   stop = runtime.stop;
   await runtime.start();

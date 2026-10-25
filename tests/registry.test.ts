@@ -4,6 +4,7 @@ import { Events, SlashCommandBuilder } from 'discord.js';
 import { Registry } from '../src/core/registry.ts';
 import { defineEvent } from '../src/core/events.ts';
 import { modules } from '../src/modules/index.ts';
+import { commands } from '../src/commands/index.ts';
 
 const command = {
   data: new SlashCommandBuilder().setName('test').setDescription('Test komutu'),
@@ -11,7 +12,7 @@ const command = {
 };
 
 void test('gerçek modüller kaydolur ve slash payloadları serialize edilir', () => {
-  const registry = new Registry(modules);
+  const registry = new Registry(modules, commands);
   assert.equal(registry.commands.size, 5);
   assert.equal(registry.components.size, 3);
   for (const entry of registry.commands.values()) assert.ok(entry.data.toJSON().description);
@@ -21,14 +22,11 @@ void test('gerçek modüller kaydolur ve slash payloadları serialize edilir', (
 
 void test('duplicate modül ve komutlar başlangıçta reddedilir', () => {
   assert.throws(() => new Registry([{ name: 'a' }, { name: 'a' }]), /modül/);
-  assert.throws(() => new Registry([{ name: 'a', commands: [command, command] }]), /komut/);
+  assert.throws(() => new Registry([], [command, command]), /komut/);
 });
 
 void test('geçersiz cooldown ve çekirdek interaction listener kaydı reddedilir', () => {
-  assert.throws(
-    () => new Registry([{ name: 'a', commands: [{ ...command, cooldownMs: NaN }] }]),
-    /cooldownMs/,
-  );
+  assert.throws(() => new Registry([], [{ ...command, cooldownMs: NaN }]), /cooldownMs/);
   assert.throws(
     () =>
       new Registry([

@@ -96,6 +96,12 @@ export class InteractionRouter {
     };
     try {
       context.signal.throwIfAborted();
+      if (interaction.guildId !== this.services.config.guildId) {
+        throw new UserError(
+          'Bu bot yalnızca yapılandırılmış sunucuda kullanılabilir.',
+          'GUILD_SCOPE',
+        );
+      }
       if (interaction.isAutocomplete()) {
         const command = this.services.registry.commands.get(interaction.commandName);
         if (command?.autocomplete) {
@@ -168,20 +174,11 @@ export class InteractionRouter {
   }
 
   private enforce(
-    interaction: Pick<
-      RepliableInteraction,
-      'guildId' | 'memberPermissions' | 'appPermissions' | 'user'
-    >,
+    interaction: Pick<RepliableInteraction, 'memberPermissions' | 'appPermissions' | 'user'>,
     policy: Policy,
     route: string,
     consumeCooldown = true,
   ): void {
-    if (
-      (policy.guildOnly || policy.userPermissions || policy.botPermissions) &&
-      !interaction.guildId
-    ) {
-      throw new UserError('Bu işlem yalnızca bir sunucuda kullanılabilir.', 'GUILD_ONLY');
-    }
     if (policy.userPermissions && !interaction.memberPermissions?.has(policy.userPermissions)) {
       throw new UserError('Bu işlem için yetkiniz bulunmuyor.', 'USER_PERMISSIONS');
     }
@@ -193,7 +190,7 @@ export class InteractionRouter {
     }
     if (consumeCooldown) {
       const remaining = this.cooldowns.consume(
-        `${route}:${interaction.guildId ?? 'dm'}:${interaction.user.id}`,
+        `${route}:${interaction.user.id}`,
         policy.cooldownMs ?? 0,
       );
       if (remaining > 0)

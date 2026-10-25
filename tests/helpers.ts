@@ -2,26 +2,30 @@ import assert from 'node:assert/strict';
 import { setImmediate } from 'node:timers/promises';
 import { Client, GatewayIntentBits, PermissionsBitField, type Interaction } from 'discord.js';
 import { readConfig } from '../src/config.ts';
-import type { BotModule, Services } from '../src/core/contracts.ts';
+import type { BotModule, Command, Services } from '../src/core/contracts.ts';
 import { createLogger } from '../src/core/logger.ts';
 import { Registry } from '../src/core/registry.ts';
 import type { InteractionRouter } from '../src/core/router.ts';
 
 export function services(
-  modules: readonly BotModule[] = [],
+  registration: { modules?: readonly BotModule[]; commands?: readonly Command[] } = {},
   overrides: Partial<Services['config']> = {},
 ) {
   const logs: string[] = [];
   return {
     client: new Client({ intents: [GatewayIntentBits.Guilds] }),
     config: {
-      ...readConfig({ DISCORD_TOKEN: 'test-secret', DISCORD_APPLICATION_ID: '123456789012345678' }),
+      ...readConfig({
+        DISCORD_TOKEN: 'test-secret',
+        DISCORD_APPLICATION_ID: '123456789012345678',
+        DISCORD_GUILD_ID: '123456789012345679',
+      }),
       ...overrides,
     },
     logger: createLogger('debug', ['test-secret'], (line) => {
       logs.push(line);
     }),
-    registry: new Registry(modules),
+    registry: new Registry(registration.modules ?? [], registration.commands ?? []),
     logs,
   } satisfies Services & { logs: string[] };
 }

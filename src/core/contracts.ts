@@ -27,7 +27,6 @@ export interface HandlerContext extends Services {
 }
 
 export interface Policy {
-  readonly guildOnly?: boolean;
   readonly userPermissions?: PermissionResolvable;
   readonly botPermissions?: PermissionResolvable;
   readonly cooldownMs?: number;
@@ -68,7 +67,6 @@ export interface BotEvent {
 
 export interface BotModule {
   readonly name: string;
-  readonly commands?: readonly Command[];
   readonly components?: readonly AnyComponent[];
   readonly events?: readonly BotEvent[];
 }

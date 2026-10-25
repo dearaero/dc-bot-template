@@ -1,6 +1,6 @@
 # Discord.js v14 · Modüler bot altyapısı
 
-TypeScript strict, ESM ve Node.js 24 üzerine kurulu bir başlangıç projesi. Üretim bağımlılığı yalnızca `discord.js`; yapılandırma, JSON loglama, iptal sinyalleri, süreç yönetimi ve testler Node.js API'lerini kullanır.
+Tek bir Discord sunucusu için TypeScript strict, ESM ve Node.js 24 üzerine kurulu bir başlangıç projesi. Üretim bağımlılığı yalnızca `discord.js`; yapılandırma, JSON loglama, iptal sinyalleri, süreç yönetimi ve testler Node.js API'lerini kullanır.
 
 ## Kurulum
 
@@ -11,13 +11,13 @@ npm ci
 cp .env.example .env
 ```
 
-`.env` içindeki `DISCORD_TOKEN`, `DISCORD_APPLICATION_ID` ve geliştirme sunucunuzun `DISCORD_GUILD_ID` değerlerini doldurun. ID'leri tırnak içine almak zorunlu değildir. Token'ı Git'e eklemeyin.
+`.env` içindeki `DISCORD_TOKEN`, `DISCORD_APPLICATION_ID` ve botun çalışacağı sunucunun `DISCORD_GUILD_ID` değerlerini doldurun. ID'leri tırnak içine almak zorunlu değildir. Token'ı Git'e eklemeyin.
 
-Discord Developer Portal'da uygulama oluşturun, **Bot** bölümünden token alın. **Installation** bölümünde sunucu kurulumu için `bot` ve `applications.commands` scope'larını seçin. Botu geliştirme sunucunuza ekleyin. Yönetici izni vermeniz gerekmez; ekleyeceğiniz işlevlere göre en az gerekli izinleri seçin. Varsayılan altyapı yalnızca `Guilds` intent'i kullanır; Message Content, Presence veya Server Members intent'i gerekmez.
+Discord Developer Portal'da uygulama oluşturun, **Bot** bölümünden token alın. **Installation** bölümünde sunucu kurulumu için `bot` ve `applications.commands` scope'larını seçin. Botu yapılandırdığınız sunucuya ekleyin. Yönetici izni vermeniz gerekmez; ekleyeceğiniz işlevlere göre en az gerekli izinleri seçin. Varsayılan altyapı yalnızca `Guilds` intent'i kullanır; Message Content, Presence veya Server Members intent'i gerekmez.
 
 ```sh
 # Yalnızca bu uygulamanın geliştirme sunucusundaki komut listesini günceller.
-npm run deploy -- guild
+npm run deploy
 npm run dev
 ```
 
@@ -25,22 +25,23 @@ npm run dev
 
 ```sh
 npm run check
-npm run deploy -- global
+npm run deploy
 npm run build
 npm start
 ```
 
-Dağıtım seçili scope'taki uygulama komutlarını **toplu olarak değiştirir**; modülden çıkardığınız komut o scope'tan silinir. Global ve guild kayıtları bağımsızdır; eski guild kayıtları global komutları gölgeleyebilir. Guild kayıtlarını kaldırmak için manifesti uygun şekilde düzenleyip boş listeyi `npm run deploy -- guild --allow-empty` ile dağıtabilirsiniz. Global değişikliklerin istemcilerde görünmesi zaman alabilir. Dağıtım, bot başlangıcında otomatik çalışmaz. Çalıştırmadan önce scope'u kontrol edin.
+Dağıtım, yalnızca `DISCORD_GUILD_ID` ile belirlenen sunucudaki uygulama komutlarını **toplu olarak değiştirir**. `src/commands/index.ts` listesinden çıkardığınız komut bu sunucudan silinir. Boş liste dağıtımı için `npm run deploy -- --allow-empty` kullanın. Global dağıtım seçeneği yoktur; dağıtım bot başlangıcında otomatik çalışmaz. Önceki sürümde dağıttığınız global veya başka sunuculara ait kayıtlar otomatik silinmez; çalışma anındaki sunucu kontrolü bunların handler çalıştırmasını engeller.
 
 ## Neler var?
 
 - `/ping`: Gateway ve ilk onay gecikmesi.
-- `/bilgi`: çalışma süresi, süreç belleği ve sunucu sayısı.
+- `/bilgi`: çalışma süresi, süreç belleği ve yapılandırılmış sunucu bilgisi.
 - `/yardim [komut]`: kayıt üzerinden üretilen liste ve autocomplete.
 - `/sunucu`: sunucu bağlamı ve `ManageGuild` izni kontrolü.
 - `/ornek`: kullanıcı sahipliği kontrollü buton, modal ve string seçim menüsü. Form verisi saklanmaz.
 - Başlangıçta duplicate komut, modül ve bileşen kontrolleri.
-- Kullanıcı/bot izinleri, sunucu kısıtı, kullanıcı ve sunucu bazlı cooldown.
+- Zorunlu tek sunucu kontrolü, kullanıcı/bot izinleri ve kullanıcı bazlı cooldown.
+- DM ve yabancı sunucu etkileşimleri handler çağrılmadan reddedilir; autocomplete boş yanıt alır.
 - Ephemeral hata yanıtları, takip kimliği, async olay hata sınırı.
 - Sınırlandırılmış cooldown tablosu, eşzamanlılık sınırı ve daraltılmış cache.
 - `SIGINT`/`SIGTERM` kapanışı, devam eden işlere iptal sinyali, süre sınırlı drain.
@@ -63,25 +64,33 @@ src/
     cooldowns.ts           Sınırlı TTL tablosu
     client.ts              Intent, cache ve REST ayarları
     runtime.ts             Discord bağlantısı ve kaynak temizliği
+  commands/
+    index.ts               Bütün slash komutlarının açık manifesti
+    system/
+      ping.ts              /ping
+      info.ts              /bilgi
+      help.ts              /yardim ve autocomplete
+      server.ts            /sunucu
+    example.ts             /ornek
   modules/
     index.ts               Açık modül manifesti
-    system/                Temel komutlar ve Gateway olayları
-    example/               Buton, modal ve menü örneği
+    system/                Gateway olayları
+    example/               Buton, modal ve menü handler’ları
 tests/                     Token/bağlantı gerektirmeyen testler
 ```
 
-Modüller derleme sırasında import edilir. Her etkileşimde dosya sistemi taranmaz; yükleme sırası açıktır. Her modül kendi komutlarını, bileşenlerini ve olaylarını dışa aktarır. Discord istemcisine global property eklenmez; bağımlılıklar context üzerinden verilir.
+Modüller derleme sırasında import edilir. Her etkileşimde dosya sistemi taranmaz; yükleme sırası açıktır. Bütün komut tanımları `src/commands` altında bulunur ve `src/commands/index.ts` üzerinden kaydedilir. Modüller yalnızca bileşenleri, olayları ve bunların servislerini barındırır; `BotModule` sözleşmesi komut alanı içermez. Discord istemcisine global property eklenmez; bağımlılıklar context üzerinden verilir.
 
-## Yeni modül eklemek
+## Yeni komut eklemek
 
-`src/modules/hello/index.ts` oluşturun:
+`src/commands/hello.ts` oluşturun:
 
 ```ts
 import { SlashCommandBuilder } from 'discord.js';
-import type { BotModule, Command } from '../../core/contracts.ts';
-import { UserError } from '../../core/errors.ts';
+import type { Command } from '../core/contracts.ts';
+import { UserError } from '../core/errors.ts';
 
-const hello = {
+export const hello = {
   data: new SlashCommandBuilder().setName('merhaba').setDescription('Selam verir.'),
   cooldownMs: 3_000,
   async execute(interaction, { signal }) {
@@ -90,14 +99,11 @@ const hello = {
     await interaction.editReply('Merhaba!');
   },
 } satisfies Command;
-
-export const helloModule = {
-  name: 'hello',
-  commands: [hello],
-} satisfies BotModule;
 ```
 
-`src/modules/index.ts` içindeki manifest listesine `helloModule` ekleyin. Ardından `npm run check` ve `npm run deploy -- guild` çalıştırın. Geliştirmede `.ts` import uzantıları native Node TypeScript çalıştırmasını sağlar; derlemede uzantılar `.js` olur.
+`src/commands/index.ts` dosyasında `hello` komutunu import edip `commands` listesine ekleyin. Komutları kategori alt klasörlerinde gruplayabilirsiniz; tüm tanımlar `src/commands` içinde kalmalıdır. Ardından `npm run check` ve `npm run deploy` çalıştırın. Geliştirmede `.ts` import uzantıları native Node TypeScript çalıştırmasını sağlar; derlemede uzantılar `.js` olur.
+
+Bileşenler ve olaylar için `src/modules` altında `BotModule` sözleşmesine uyan bir modül oluşturup `src/modules/index.ts` listesine ekleyin. Yeni komut modül kaydı gerektirmez. Sunucuya ait özel Gateway olaylarında da `services.config.guildId` ile kaynak sunucuyu doğrulayın.
 
 İş mantığını modül içindeki servis dosyalarına ayırın. Veritabanı, HTTP istemcisi gibi ortak bağımlılıkları `Services` sözleşmesine ekleyip başlangıçta oluşturun. Kalıcı veriyi process içi `Map` içinde tutmayın.
 
@@ -129,7 +135,7 @@ Her handler `context.signal` alır. `HANDLER_TIMEOUT_MS` dolduğunda veya kapan�
 | ----------------------------- | ------------- | ----------------------------------------- |
 | `DISCORD_TOKEN`               | zorunlu       | Bot token'ı                               |
 | `DISCORD_APPLICATION_ID`      | zorunlu       | Uygulama ID'si                            |
-| `DISCORD_GUILD_ID`            | boş           | Guild dağıtımında zorunlu                 |
+| `DISCORD_GUILD_ID`            | zorunlu       | Botun çalışacağı tek sunucu               |
 | `NODE_ENV`                    | `development` | `development`, `test`, `production`       |
 | `LOG_LEVEL`                   | `info`        | `debug`, `info`, `warn`, `error`, `fatal` |
 | `MAX_CONCURRENT_INTERACTIONS` | `100`         | Aktif etkileşim üst sınırı                |
@@ -138,7 +144,7 @@ Her handler `context.signal` alır. `HANDLER_TIMEOUT_MS` dolduğunda veya kapan�
 
 Hatalı yapılandırma başlangıçta toplu raporlanır. Varsayılan cache, mesaj/presence/reaction/voice state tutmaz ve üye cache'ini sınırlar; ses, moderasyon veya mesaj işlevleri eklerken `core/client.ts` ayarlarını ihtiyaçla birlikte değiştirin. Discord.js REST rate limit kuyruğu ve Gateway reconnect mekanizması kullanılır; ek kontrolsüz retry döngüsü yoktur.
 
-Kapasite dolduğunda yeni etkileşim başlatılmaz; Discord istemcisi başarısız etkileşim gösterebilir. Bu seçim, aşırı yükte sınırsız yanıt kuyruğu büyümesini engeller. Cooldown verisi tek sürece aittir ve yeniden başlatmada sıfırlanır; çok süreçli/shard kurulumunda ortak atomik Redis TTL işlemi gibi bir servisle değiştirin. Bu proje tek süreç için başlangıçtır; otomatik sharding, veritabanı ve HTTP sağlık endpoint'i içermez.
+Kapasite dolduğunda yeni etkileşim başlatılmaz; Discord istemcisi başarısız etkileşim gösterebilir. Bu seçim, aşırı yükte sınırsız yanıt kuyruğu büyümesini engeller. Cooldown verisi tek sürece aittir ve yeniden başlatmada sıfırlanır. Proje tek sunucu ve tek süreç için tasarlanmıştır; veritabanı ve HTTP sağlık endpoint’i içermez.
 
 ## Test ve Docker
 

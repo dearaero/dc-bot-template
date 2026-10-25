@@ -3,10 +3,11 @@ import { test } from 'node:test';
 import { PermissionFlagsBits } from 'discord.js';
 import { InteractionRouter } from '../src/core/router.ts';
 import { modules } from '../src/modules/index.ts';
+import { commands } from '../src/commands/index.ts';
 import { interaction, services, settled } from './helpers.ts';
 
 void test('temel örnek komutların tamamı gerçek handler üzerinden sonuç verir', async () => {
-  const context = services(modules);
+  const context = services({ modules, commands });
   const router = new InteractionRouter(context);
   for (const name of ['ping', 'bilgi', 'yardim', 'ornek', 'sunucu']) {
     const i = interaction();
@@ -27,7 +28,7 @@ void test('temel örnek komutların tamamı gerçek handler üzerinden sonuç ve
 });
 
 void test('yardım autocomplete kayıtlı komutları filtreler', async () => {
-  const router = new InteractionRouter(services(modules));
+  const router = new InteractionRouter(services({ modules, commands }));
   const i = interaction('autocomplete');
   i.fake.commandName = 'yardim';
   i.fake.options.getFocused = () => 'pin';
@@ -38,7 +39,7 @@ void test('yardım autocomplete kayıtlı komutları filtreler', async () => {
 
 void test('form butonu defer olmadan modal açar; başka kullanıcı reddedilir', async () => {
   for (const owner of ['123456789012345680', 'someone-else']) {
-    const router = new InteractionRouter(services(modules));
+    const router = new InteractionRouter(services({ modules, commands }));
     const i = interaction('button');
     i.fake.customId = `form:${owner}`;
     router.handle(i.value);
@@ -51,7 +52,7 @@ void test('form butonu defer olmadan modal açar; başka kullanıcı reddedilir'
 
 void test('modal mesajı işler; boş içerik iş kuralı hatası üretir', async () => {
   for (const message of ['Merhaba', '   ']) {
-    const router = new InteractionRouter(services(modules));
+    const router = new InteractionRouter(services({ modules, commands }));
     const i = interaction('modal');
     i.fake.customId = `feedback:${i.fake.user.id}`;
     i.fake.fields.getTextInputValue = () => message;
@@ -66,7 +67,7 @@ void test('modal mesajı işler; boş içerik iş kuralı hatası üretir', asyn
 
 void test('menü bilinen seçimi işler ve bilinmeyen değeri reddeder', async () => {
   for (const value of ['commands', 'invalid']) {
-    const router = new InteractionRouter(services(modules));
+    const router = new InteractionRouter(services({ modules, commands }));
     const i = interaction('select');
     i.fake.customId = `topic:${i.fake.user.id}`;
     i.fake.values = [value];

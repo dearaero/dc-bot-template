@@ -6,7 +6,7 @@ export type LogLevel = (typeof logLevels)[number];
 export interface Config {
   readonly token: string;
   readonly applicationId: string;
-  readonly guildId: string | undefined;
+  readonly guildId: string;
   readonly environment: 'development' | 'test' | 'production';
   readonly logLevel: LogLevel;
   readonly maxConcurrentInteractions: number;
@@ -20,9 +20,8 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
   const token = env.DISCORD_TOKEN?.trim() ?? '';
   if (!token || /\s/.test(token)) problems.push('DISCORD_TOKEN dolu ve boşluksuz olmalı.');
 
-  function snowflake(key: string, optional = false): string | undefined {
+  function snowflake(key: string): string | undefined {
     const value = env[key]?.trim();
-    if (!value && optional) return undefined;
     if (!value || !/^\d{17,20}$/.test(value) || BigInt(value) > 18_446_744_073_709_551_615n) {
       problems.push(`${key} geçerli bir Discord ID olmalı.`);
     }
@@ -39,7 +38,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
   }
 
   const applicationId = snowflake('DISCORD_APPLICATION_ID');
-  const guildId = snowflake('DISCORD_GUILD_ID', true);
+  const guildId = snowflake('DISCORD_GUILD_ID');
   const environment = env.NODE_ENV ?? 'development';
   if (!['development', 'test', 'production'].includes(environment)) {
     problems.push('NODE_ENV: development, test veya production olmalı.');
@@ -54,7 +53,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
   return Object.freeze({
     token,
     applicationId: applicationId!,
-    guildId,
+    guildId: guildId!,
     environment: environment as Config['environment'],
     logLevel: logLevel as LogLevel,
     maxConcurrentInteractions,

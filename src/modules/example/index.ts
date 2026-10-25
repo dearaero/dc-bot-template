@@ -1,50 +1,11 @@
-import {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ModalBuilder,
-  SlashCommandBuilder,
-  StringSelectMenuBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-} from 'discord.js';
-import type { BotModule, Command, Component } from '../../core/contracts.ts';
+import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import type { BotModule, Component } from '../../core/contracts.ts';
 import { UserError } from '../../core/errors.ts';
 
 function assertOwner(customId: string, userId: string): void {
   if (customId.split(':')[1] !== userId)
     throw new UserError('Bu bileşen başka bir kullanıcıya ait.', 'NOT_OWNER');
 }
-
-const example = {
-  data: new SlashCommandBuilder()
-    .setName('ornek')
-    .setDescription('Buton, modal ve seçim menüsü örneğini açar.'),
-  cooldownMs: 5_000,
-  async execute(interaction) {
-    await interaction.editReply({
-      content: 'Modüler etkileşim örneği. Form girdileri yalnızca size gösterilir; kaydedilmez.',
-      components: [
-        new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`form:${interaction.user.id}`)
-            .setLabel('Form aç')
-            .setStyle(ButtonStyle.Primary),
-        ),
-        new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId(`topic:${interaction.user.id}`)
-            .setPlaceholder('Bir konu seçin')
-            .addOptions(
-              { label: 'Komut eklemek', value: 'commands' },
-              { label: 'Hata yönetimi', value: 'errors' },
-              { label: 'İptal sinyali', value: 'cancellation' },
-            ),
-        ),
-      ],
-    });
-  },
-} satisfies Command;
 
 const form = {
   kind: 'button',
@@ -96,7 +57,7 @@ const topic = {
     assertOwner(interaction.customId, interaction.user.id);
     const descriptions: Record<string, string> = {
       commands:
-        'src/modules altında Command sözleşmesine uyan bir komut oluşturun ve modül manifestine ekleyin.',
+        'src/commands altında Command sözleşmesine uyan bir komut oluşturun ve src/commands/index.ts manifestine ekleyin.',
       errors:
         'Beklenen iş kuralı hatalarında UserError fırlatın. Beklenmeyen hatalar merkezi olarak loglanır ve takip koduyla yanıtlanır.',
       cancellation:
@@ -110,6 +71,5 @@ const topic = {
 
 export const exampleModule = {
   name: 'example',
-  commands: [example],
   components: [form, feedback, topic],
 } satisfies BotModule;

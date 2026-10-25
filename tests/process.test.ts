@@ -8,7 +8,7 @@ const env = {
   LOG_LEVEL: 'info',
   DISCORD_TOKEN: 'process-test-secret',
   DISCORD_APPLICATION_ID: '123456789012345678',
-  DISCORD_GUILD_ID: '',
+  DISCORD_GUILD_ID: '123456789012345679',
 };
 
 function run(code: string, overrides: NodeJS.ProcessEnv = {}) {
@@ -55,7 +55,7 @@ void test('fatal exception ve rejection maskelenmiş logla kod 1 üretir', () =>
 });
 
 void test('deploy scope ve guild ID kontrolü ağ çağrısından önce başarısız olur', () => {
-  for (const args of [[], ['guild'], ['wrong-scope']]) {
+  for (const args of [['global'], ['guild'], ['wrong-scope']]) {
     const result = run(
       `process.argv = ['node', 'deploy.ts', ...${JSON.stringify(args)}]; await import('./src/deploy.ts');`,
     );
@@ -64,4 +64,26 @@ void test('deploy scope ve guild ID kontrolü ağ çağrısından önce başarı
     assert.match(result.stderr, /dağıtımı başarısız/);
     assert.doesNotMatch(result.stderr, /process-test-secret/);
   }
+  const missingGuild = run("await import('./src/deploy.ts');", { DISCORD_GUILD_ID: '' });
+  assert.equal(missingGuild.status, 1);
+  assert.match(missingGuild.stderr, /DISCORD_GUILD_ID/);
+});
+
+void test('deploy tüm komutları yalnızca yapılandırılmış sunucunun route’una yazar', () => {
+  const result = run(`
+    import { REST } from 'discord.js';
+    REST.prototype.put = async (route, options) => {
+      console.log(JSON.stringify({ route, count: options.body.length }));
+      return [];
+    };
+    process.argv = ['node', 'deploy.ts'];
+    await import('./src/deploy.ts');
+  `);
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0);
+  assert.match(
+    result.stdout,
+    /\/applications\/123456789012345678\/guilds\/123456789012345679\/commands/,
+  );
+  assert.match(result.stdout, /"count":5/);
 });
